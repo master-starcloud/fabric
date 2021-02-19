@@ -23,13 +23,12 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/hyperledger/fabric/cmd/common/signer"
 	"github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/integration/chaincode/kvexecutor"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
+	"github.com/hyperledger/fabric/integration/nwo/runner"
 	"github.com/hyperledger/fabric/integration/pvtdata/marblechaincodeutil"
-	"github.com/hyperledger/fabric/integration/runner"
 	ic "github.com/hyperledger/fabric/internal/peer/chaincode"
 	"github.com/hyperledger/fabric/internal/peer/common"
 	"github.com/hyperledger/fabric/internal/pkg/comm"
@@ -41,9 +40,7 @@ import (
 	"github.com/tedsuo/ifrit"
 )
 
-const (
-	testchannelID = "testchannel"
-)
+const testchannelID = "testchannel"
 
 var _ bool = Describe("Snapshot Generation and Bootstrap", func() {
 	var (
@@ -599,7 +596,8 @@ func initAndStartFourOrgsNetwork() *setup {
 		Organization: "Org4",
 		Channels: []*nwo.PeerChannel{
 			{Name: testchannelID, Anchor: true},
-		}})
+		},
+	})
 
 	n := nwo.New(config, testDir, client, StartPort(), components)
 	n.GenerateConfigTree()
@@ -809,7 +807,7 @@ func joinBySnapshot(n *nwo.Network, orderer *nwo.Orderer, peer *nwo.Peer, channe
 	n.JoinChannelBySnapshot(snapshotDir, peer)
 
 	By("calling JoinBySnapshotStatus")
-	checkStatus := func() []byte { return n.JoinBySnapshotStatus(peer) }
+	checkStatus := func() string { return n.JoinBySnapshotStatus(peer) }
 	Eventually(checkStatus, n.EventuallyTimeout, 10*time.Second).Should(ContainSubstring("No joinbysnapshot operation is in progress"))
 
 	By("waiting for the new peer to have the same ledger height")
@@ -822,7 +820,7 @@ func joinBySnapshot(n *nwo.Network, orderer *nwo.Orderer, peer *nwo.Peer, channe
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, n.EventuallyTimeout).Should(gexec.Exit(0))
 	channelInfoStr := strings.TrimPrefix(string(sess.Buffer().Contents()[:]), "Blockchain info:")
-	var bcInfo = cb.BlockchainInfo{}
+	bcInfo := cb.BlockchainInfo{}
 	err = json.Unmarshal([]byte(channelInfoStr), &bcInfo)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(bcInfo.Height).To(Equal(uint64(channelHeight)))
@@ -1046,13 +1044,7 @@ func commitTx(n *nwo.Network, orderer *nwo.Orderer, peer *nwo.Peer, channelID st
 
 	// get signing identity
 	By("getting the signer for user1 on peer " + peer.ID())
-	conf := signer.Config{
-		MSPID:        n.Organization(peer.Organization).MSPID,
-		IdentityPath: n.PeerUserCert(peer, "User1"),
-		KeyPath:      n.PeerUserKey(peer, "User1"),
-	}
-	signer, err := signer.NewSigner(conf)
-	Expect(err).NotTo(HaveOccurred())
+	signer := n.PeerUserSigner(peer, "User1")
 
 	// create deliver client and delivergroup
 	peerClient := &common.PeerClient{

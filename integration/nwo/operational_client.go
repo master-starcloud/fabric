@@ -38,6 +38,7 @@ func operationalClients(tlsDir string) (authClient, unauthClient *http.Client) {
 
 	authenticatedClient := &http.Client{
 		Transport: &http.Transport{
+			MaxIdleConnsPerHost: -1,
 			TLSClientConfig: &tls.Config{
 				Certificates: []tls.Certificate{clientCert},
 				RootCAs:      clientCertPool,
@@ -46,21 +47,10 @@ func operationalClients(tlsDir string) (authClient, unauthClient *http.Client) {
 	}
 	unauthenticatedClient := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: clientCertPool},
+			MaxIdleConnsPerHost: -1,
+			TLSClientConfig:     &tls.Config{RootCAs: clientCertPool},
 		},
 	}
 
 	return authenticatedClient, unauthenticatedClient
-}
-
-func getBody(client *http.Client, url string) func() string {
-	return func() string {
-		resp, err := client.Get(url)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
-		return string(bodyBytes)
-	}
 }

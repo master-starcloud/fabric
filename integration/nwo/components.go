@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/hyperledger/fabric/integration/runner"
+	"github.com/hyperledger/fabric/integration/nwo/runner"
 	. "github.com/onsi/gomega"
 )
 
@@ -66,6 +66,4 @@ const CCEnvDefaultImage = "hyperledger/fabric-ccenv:latest"
 var RequiredImages = []string{
 	CCEnvDefaultImage,
 	runner.CouchDBDefaultImage,
-	runner.KafkaDefaultImage,
-	runner.ZooKeeperDefaultImage,
 }
